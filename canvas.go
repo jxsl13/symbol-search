@@ -5,13 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
-
-	"github.com/gdamore/tcell/v2/encoding"
 )
-
-func init() {
-	encoding.Register()
-}
 
 type Canvas struct {
 }
