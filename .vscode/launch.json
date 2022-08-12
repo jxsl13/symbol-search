@@ -10,7 +10,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "${fileDirname}",
-            "args": ["ssl", "/DBA/gnu/snk-1.5.0_x64/bin/wget"]
+            "args": ["ssl", "/DBA"]
         }
     ]
 }

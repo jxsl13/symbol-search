@@ -8,11 +8,12 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"symbol-search/nm"
 	"sync/atomic"
 
-	"github.com/iafan/cwalk"
+	"github.com/jxsl13/cwalk"
 )
 
 var (
@@ -43,8 +44,30 @@ func init() {
 
 func checkErr(err error) {
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v", err)
-		os.Exit(1)
+		if er, ok := err.(cwalk.WalkerErrorList); ok {
+			fmt.Println("We encountered a few errors along the way which ")
+			m := make(map[string]struct{}, len(er.ErrorList))
+
+			for _, e := range er.ErrorList {
+				m[e.Error()] = struct{}{}
+			}
+			er.ErrorList = er.ErrorList[:0]
+
+			sl := make([]string, 0, len(m))
+			for k := range m {
+				sl = append(sl, k)
+			}
+
+			sort.Strings(sl)
+
+			for _, s := range sl {
+				fmt.Println(s)
+			}
+
+		} else {
+			fmt.Fprintf(os.Stderr, "Error: %v", err)
+			os.Exit(1)
+		}
 	}
 }
 
@@ -52,17 +75,7 @@ func main() {
 	canvas := NewCanvas()
 	defer canvas.Close()
 
-	fi, err := os.Stat(RootPath)
-	checkErr(err)
-
-	// single file
-	if !fi.IsDir() {
-		err = WalkFunc(canvas, RootPath, Matchers)("", fi, nil)
-		checkErr(err)
-		return
-	}
-
-	err = WalkDirectory(canvas, RootPath, Matchers)
+	err := cwalk.Walk(RootPath, WalkFunc(canvas, Matchers))
 	checkErr(err)
 }
 
@@ -73,7 +86,7 @@ func plural(i int64) string {
 	return ""
 }
 
-func WalkFunc(canvas *Canvas, rootPath string, matchers []*regexp.Regexp) filepath.WalkFunc {
+func WalkFunc(canvas *Canvas, matchers []*regexp.Regexp) filepath.WalkFunc {
 	permErrCnt := int64(0)
 	seenCnt := int64(0)
 
@@ -108,8 +121,7 @@ func WalkFunc(canvas *Canvas, rootPath string, matchers []*regexp.Regexp) filepa
 			return nil
 		}
 
-		fullPath := filepath.Join(rootPath, path)
-		sf, err := nm.GetFilteredSymbols(fullPath, matchers)
+		sf, err := nm.GetFilteredSymbols(path, matchers)
 		if err != nil {
 			if errors.Is(err, os.ErrPermission) {
 				atomic.AddInt64(&permErrCnt, 1)
@@ -124,13 +136,7 @@ func WalkFunc(canvas *Canvas, rootPath string, matchers []*regexp.Regexp) filepa
 		for _, s := range sf.Symbols {
 			t.AppendRow([]interface{}{sf.Path, s.Name, s.Version, s.Library})
 		}
-
 		return nil
 	}
 
-}
-
-func WalkDirectory(canvas *Canvas, rootPath string, matchers []*regexp.Regexp) error {
-	err := cwalk.Walk(rootPath, WalkFunc(canvas, rootPath, matchers))
-	return err
 }
