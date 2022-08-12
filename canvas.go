@@ -30,6 +30,7 @@ func (c *Canvas) Paint(s string) {
 	if time.Since(c.lastTimePainted) > 5*time.Second {
 		clearTerminal()
 		fmt.Println(s)
+		c.lastTimePainted = time.Now()
 	}
 }
 
