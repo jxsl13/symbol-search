@@ -27,7 +27,7 @@ func NewCanvas() *Canvas {
 
 func (c *Canvas) Paint(s string) {
 	c.buffer = s
-	if time.Since(c.lastTimePainted) > 3*time.Second {
+	if time.Since(c.lastTimePainted) > 5*time.Second {
 		clearTerminal()
 		fmt.Println(s)
 	}
