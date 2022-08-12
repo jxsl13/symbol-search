@@ -86,6 +86,11 @@ func WalkFunc(canvas *Canvas, rootPath string, matchers []*regexp.Regexp) filepa
 			canvas.Paint(t.Render())
 		}()
 		if err != nil {
+			if errors.Is(err, os.ErrPermission) {
+				atomic.AddInt64(&permErrCnt, 1)
+				return nil
+			}
+			// too many file descriptors or so
 			return err
 		}
 
