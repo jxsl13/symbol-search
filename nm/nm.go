@@ -3,7 +3,6 @@ package nm
 import (
 	"debug/elf"
 	"regexp"
-	"sort"
 )
 
 type Symbol struct {
@@ -92,22 +91,8 @@ func GetFilteredSymbols(filename string, matchers []*regexp.Regexp) (*SymbolFile
 		result = append(result, k)
 	}
 
-	sort.Sort(ByName(result))
-
 	return &SymbolFile{
 		Path:    filename,
 		Symbols: result,
 	}, nil
 }
-
-type ByPath []*SymbolFile
-
-func (a ByPath) Len() int           { return len(a) }
-func (a ByPath) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a ByPath) Less(i, j int) bool { return a[i].Path < a[j].Path }
-
-type ByName []Symbol
-
-func (a ByName) Len() int           { return len(a) }
-func (a ByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a ByName) Less(i, j int) bool { return a[i].Name < a[j].Name }

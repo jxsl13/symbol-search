@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"log"
 	"os"
@@ -40,28 +41,27 @@ func init() {
 	RootPath = os.Args[2]
 }
 
+func checkErr(err error) {
+	fmt.Fprintf(os.Stderr, "Error: %v", err)
+	os.Exit(1)
+}
+
 func main() {
 	canvas := NewCanvas()
 	defer canvas.Close()
 
 	fi, err := os.Stat(RootPath)
-	if err != nil {
-		log.Fatalln(err)
-	}
+	checkErr(err)
 
 	// single file
 	if !fi.IsDir() {
 		err = WalkFunc(canvas, RootPath, Matchers)("", fi, nil)
-		if err != nil {
-			log.Fatalln(err)
-		}
+		checkErr(err)
 		return
 	}
 
 	err = WalkDirectory(canvas, RootPath, Matchers)
-	if err != nil {
-		log.Fatalln(err)
-	}
+	checkErr(err)
 }
 
 func plural(i int64) string {
