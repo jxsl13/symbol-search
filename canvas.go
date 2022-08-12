@@ -11,6 +11,7 @@ import (
 type Canvas struct {
 	lastTimePainted time.Time
 	buffer          string
+	errors          []error
 }
 
 func (c *Canvas) Close() {
@@ -21,6 +22,7 @@ func (c *Canvas) Close() {
 func NewCanvas() *Canvas {
 	c := &Canvas{
 		lastTimePainted: time.Now(),
+		errors:          []error{},
 	}
 	return c
 }
@@ -34,9 +36,18 @@ func (c *Canvas) Paint(s string) {
 	}
 }
 
+// Error collects error messages in order to print them at the end
+func (c *Canvas) Error(err error) {
+	c.errors = append(c.errors, err)
+}
+
 func (c *Canvas) Flush() {
 	clearTerminal()
 	fmt.Println(c.buffer)
+
+	for idx, err := range c.errors {
+		fmt.Fprintln(os.Stderr, idx, err)
+	}
 }
 
 func clearTerminal() {

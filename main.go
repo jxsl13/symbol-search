@@ -91,7 +91,9 @@ func WalkFunc(canvas *Canvas, rootPath string, matchers []*regexp.Regexp) filepa
 				return nil
 			}
 			// too many file descriptors or so
-			return err
+			// collect but do not abort
+			canvas.Error(err)
+			return nil
 		}
 
 		if info.IsDir() {
