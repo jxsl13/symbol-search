@@ -1,6 +1,5 @@
 # symbol-search
 
-
 This utility can be used in order to find vulneravilities or rather vulnerable function symbols in binaries and shared libraries.
 You can use this utility to search for binaries or shared libraries that might potentially contain vulnerable or exploitable
 versions of dynamically linked or statically linked libraries.
@@ -10,6 +9,13 @@ The second argument is the root path that is used to start the search for binari
 ```sh
 ./symbol-search "gnutls,gnu" /path/to/dir/or/single/file
 ```
+
+## Installation
+
+```shell
+go install github.com/jxsl13/symbol-search@latest
+```
+
 
 ## Supported file formats
  - ELF

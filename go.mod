@@ -1,4 +1,4 @@
-module symbol-search
+module github.com/jxsl13/symbol-search
 
 go 1.18
 

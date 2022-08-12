@@ -10,8 +10,9 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"symbol-search/nm"
 	"sync/atomic"
+
+	"github.com/jxsl13/symbol-search/nm"
 
 	"github.com/jxsl13/cwalk"
 )
