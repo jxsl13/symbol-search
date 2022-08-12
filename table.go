@@ -25,8 +25,8 @@ func NewTable() *SyncTable {
 	t.SetColumnConfigs([]table.ColumnConfig{
 		{Number: 1, AutoMerge: true},
 		{Number: 2, AutoMerge: true},
-		{Number: 3, AutoMerge: true},
-		{Number: 4, AutoMerge: true},
+		{Number: 3, AutoMerge: false},
+		{Number: 4, AutoMerge: false},
 	})
 	t.SetStyle(table.StyleLight)
 	t.Style().Options.SeparateRows = true
