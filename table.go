@@ -17,10 +17,6 @@ func NewTable() *SyncTable {
 			Number: 2,
 			Mode:   table.Asc,
 		},
-		{
-			Number: 3,
-			Mode:   table.Asc,
-		},
 	})
 	t.SetColumnConfigs([]table.ColumnConfig{
 		{Number: 1, AutoMerge: true},
