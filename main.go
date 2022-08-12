@@ -42,8 +42,10 @@ func init() {
 }
 
 func checkErr(err error) {
-	fmt.Fprintf(os.Stderr, "Error: %v", err)
-	os.Exit(1)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v", err)
+		os.Exit(1)
+	}
 }
 
 func main() {
