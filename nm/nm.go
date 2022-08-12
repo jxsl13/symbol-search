@@ -88,6 +88,12 @@ func GetFilteredSymbols(filename string, matchers []*regexp.Regexp) (*SymbolFile
 	}
 	result = result[:0]
 	for k := range m {
+		if k.Version == "" {
+			k.Version = "unknown"
+		}
+		if k.Library == "" {
+			k.Library = "unkown"
+		}
 		result = append(result, k)
 	}
 

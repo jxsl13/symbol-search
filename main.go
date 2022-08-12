@@ -42,35 +42,6 @@ func init() {
 	RootPath = os.Args[2]
 }
 
-func checkErr(err error) {
-	if err != nil {
-		if er, ok := err.(cwalk.WalkerErrorList); ok {
-			fmt.Println("We encountered a few errors along the way which ")
-			m := make(map[string]struct{}, len(er.ErrorList))
-
-			for _, e := range er.ErrorList {
-				m[e.Error()] = struct{}{}
-			}
-			er.ErrorList = er.ErrorList[:0]
-
-			sl := make([]string, 0, len(m))
-			for k := range m {
-				sl = append(sl, k)
-			}
-
-			sort.Strings(sl)
-
-			for _, s := range sl {
-				fmt.Println(s)
-			}
-
-		} else {
-			fmt.Fprintf(os.Stderr, "Error: %v", err)
-			os.Exit(1)
-		}
-	}
-}
-
 func main() {
 	canvas := NewCanvas()
 	defer canvas.Close()
@@ -134,9 +105,38 @@ func WalkFunc(canvas *Canvas, matchers []*regexp.Regexp) filepath.WalkFunc {
 		}
 
 		for _, s := range sf.Symbols {
-			t.AppendRow([]interface{}{sf.Path, s.Name, s.Version, s.Library})
+			t.AppendRow([]interface{}{path, s.Name, s.Version, s.Library})
 		}
 		return nil
 	}
 
+}
+
+func checkErr(err error) {
+	if err != nil {
+		if er, ok := err.(cwalk.WalkerErrorList); ok {
+			fmt.Println("We encountered a few errors along the way which ")
+			m := make(map[string]struct{}, len(er.ErrorList))
+
+			for _, e := range er.ErrorList {
+				m[e.Error()] = struct{}{}
+			}
+			er.ErrorList = er.ErrorList[:0]
+
+			sl := make([]string, 0, len(m))
+			for k := range m {
+				sl = append(sl, k)
+			}
+
+			sort.Strings(sl)
+
+			for _, s := range sl {
+				fmt.Println(s)
+			}
+
+		} else {
+			fmt.Fprintf(os.Stderr, "Error: %v", err)
+			os.Exit(1)
+		}
+	}
 }
