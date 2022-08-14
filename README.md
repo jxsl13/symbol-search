@@ -16,11 +16,8 @@ The second argument is the root path that is used to start the search for binari
 go install github.com/jxsl13/symbol-search@latest
 ```
 
-
 ## Supported file formats
  - ELF
-
-## TODO:
-
-- Add an automatic zip,tar,tar.gz,tgz,tar.xz file reader that extracts files in memory and checks their symbols.
-- Support for the Windows file format: COFF (https://pkg.go.dev/debug/pe)
+ - PE/COFF
+ - Inside of archives:
+    - tgz/gz, tar, xz, zip, 7z
