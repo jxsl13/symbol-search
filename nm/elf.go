@@ -1,9 +1,12 @@
 package nm
 
-import "debug/elf"
+import (
+	"debug/elf"
+	"io"
+)
 
-func GetSymbols(filename string) (*SymbolFile, error) {
-	f, err := elf.Open(filename)
+func SymbolsELF(file io.ReaderAt) ([]Symbol, error) {
+	f, err := elf.NewFile(file)
 	if err != nil {
 		return nil, err
 	}
@@ -29,7 +32,7 @@ func GetSymbols(filename string) (*SymbolFile, error) {
 	for _, s := range ss {
 		result = append(result, Symbol{
 			Name:    s.Name,
-			Version: s.Version,
+			Version: defaultIfEmpty(s.Version, UnknownLibrary),
 			Library: s.Library,
 		})
 	}
@@ -37,7 +40,7 @@ func GetSymbols(filename string) (*SymbolFile, error) {
 	for _, s := range ds {
 		result = append(result, Symbol{
 			Name:    s.Name,
-			Version: s.Version,
+			Version: defaultIfEmpty(s.Version, UnknownLibrary),
 			Library: s.Library,
 		})
 	}
@@ -45,13 +48,10 @@ func GetSymbols(filename string) (*SymbolFile, error) {
 	for _, s := range is {
 		result = append(result, Symbol{
 			Name:    s.Name,
-			Version: s.Version,
+			Version: defaultIfEmpty(s.Version, UnknownLibrary),
 			Library: s.Library,
 		})
 	}
 
-	return &SymbolFile{
-		Path:    filename,
-		Symbols: result,
-	}, nil
+	return result, nil
 }

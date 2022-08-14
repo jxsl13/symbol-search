@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"os"
@@ -12,6 +13,8 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/jxsl13/symbol-search/archive"
 	"github.com/jxsl13/symbol-search/nm"
 
 	"github.com/jxsl13/cwalk"
@@ -87,13 +90,23 @@ func WalkFunc(canvas *Canvas, matchers []*regexp.Regexp) filepath.WalkFunc {
 			return nil
 		}
 
+		if archive.IsSupported(path) {
+			err = archive.Walk(path, ArchiveWalker(matchers, t))
+			if err != nil {
+				if errors.Is(err, os.ErrPermission) {
+					atomic.AddInt64(&permErrCnt, 1)
+				}
+				return nil
+			}
+		}
+
 		// everything below 10kb woul dnot be able to have
 		// enough functions in order to execute code
 		if info.Size() < 10_000 {
 			return nil
 		}
 
-		sf, err := nm.GetFilteredSymbols(path, matchers)
+		symbols, err := nm.GetFilteredSymbols(path, matchers)
 		if err != nil {
 			if errors.Is(err, os.ErrPermission) {
 				atomic.AddInt64(&permErrCnt, 1)
@@ -101,16 +114,32 @@ func WalkFunc(canvas *Canvas, matchers []*regexp.Regexp) filepath.WalkFunc {
 			return nil
 		}
 
-		if !sf.HasSymbols() {
-			return nil
-		}
-
-		for _, s := range sf.Symbols {
-			t.AppendRow([]interface{}{path, s.Name, s.Version, s.Library})
+		for _, s := range symbols {
+			AppendSymbol(t, path, s)
 		}
 		return nil
 	}
+}
 
+func ArchiveWalker(matchers []*regexp.Regexp, t *SyncTable) archive.WalkFunc {
+	return func(path string, info fs.FileInfo, file io.ReaderAt, err error) error {
+		if err != nil {
+			return nil
+		}
+		symbols, err := nm.NewFilteredSymbols(file, matchers)
+		if err != nil {
+			return nil
+		}
+
+		for _, s := range symbols {
+			AppendSymbol(t, path, s)
+		}
+		return nil
+	}
+}
+
+func AppendSymbol(t *SyncTable, path string, s nm.Symbol) {
+	t.AppendRow(table.Row{path, s.Name, s.Version, s.Library})
 }
 
 func checkErr(err error) {
