@@ -8,7 +8,7 @@ type Symbol struct {
 
 func defaultIfEmpty(s, defaultString string) string {
 	if s == "" {
-		return ""
+		return defaultString
 	}
-	return defaultString
+	return s
 }
