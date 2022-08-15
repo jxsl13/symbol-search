@@ -9,7 +9,11 @@ The second argument is the root path that is used to start the search for binari
 ```sh
 ./symbol-search "gnutls_pkcs7_verify" /path/to/dir/or/single/file
 
+# --output
 ./symbol-search "gnutls_pkcs7_verify" /path/to/dir/or/single/file -o report.txt
+
+# --num-workers (default 6)
+./symbol-search "gnutls_pkcs7_verify" /path/to/dir/or/single/file -o report.txt -n 64
 ```
 
 ## Installation
