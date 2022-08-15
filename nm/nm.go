@@ -31,6 +31,9 @@ func NewFilteredSymbols(file io.ReaderAt, matchers []*regexp.Regexp) ([]Symbol, 
 	result := make([]Symbol, 0, len(matchers))
 	for _, s := range ss {
 		for _, m := range matchers {
+			if s.Name == "" {
+				continue
+			}
 			if m.MatchString(s.Name) {
 				result = append(result, s)
 			}
