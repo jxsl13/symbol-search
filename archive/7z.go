@@ -1,36 +1,36 @@
 package archive
 
 import (
-	"io/fs"
+	"io"
 	"os"
 
 	"github.com/bodgit/sevenzip"
 )
 
 func Walk7Zip(file *os.File, fileSize int64, walkFunc WalkFunc) error {
-	f, err := sevenzip.NewReader(file, fileSize)
+	zfs, err := sevenzip.NewReader(file, fileSize)
 	if err != nil {
 		return err
 	}
-	return fs.WalkDir(f, "/", func(path string, d fs.DirEntry, err error) error {
+
+	for _, f := range zfs.File {
+		err = walk7ZipFile(f, walkFunc)
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
 
-		info, err := d.Info()
-		if err != nil {
-			return walkFunc(path, nil, nil, err)
-		}
-
-		currentFile, err := f.Open(path)
-		if err != nil {
-			return walkFunc(path, info, nil, err)
-		}
-		ra, err := newReaderAt(currentFile, info.Size())
-		if err != nil {
-			return walkFunc(path, info, nil, err)
-		}
-
-		return walkFunc(path, info, ra, nil)
-	})
+func walk7ZipFile(f *sevenzip.File, walkFunc WalkFunc) error {
+	zFile, err := f.Open()
+	if err != nil {
+		err = walkFunc(f.Name, f.FileInfo(), nil, err)
+	} else {
+		var ra io.ReaderAt
+		ra, err = newReaderAt(zFile, f.FileInfo().Size())
+		err = walkFunc(f.Name, f.FileInfo(), ra, err)
+	}
+	defer zFile.Close()
+	return err
 }

@@ -2,31 +2,34 @@ package archive
 
 import (
 	"archive/zip"
-	"io/fs"
+	"io"
 	"os"
 )
 
 func WalkZip(file *os.File, fileSize int64, walkFunc WalkFunc) error {
-	f, err := zip.NewReader(file, fileSize)
+	zfs, err := zip.NewReader(file, fileSize)
 	if err != nil {
 		return err
 	}
-	return fs.WalkDir(f, "/", func(path string, d fs.DirEntry, err error) error {
+
+	for _, f := range zfs.File {
+		err = walkZipFile(f, walkFunc)
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
 
-		info, err := d.Info()
-		if err != nil {
-			return walkFunc(path, nil, nil, err)
-		}
-
-		currentFile, err := f.Open(path)
-		if err != nil {
-			return walkFunc(path, info, nil, err)
-		}
-
-		ra, err := newReaderAt(currentFile, info.Size())
-		return walkFunc(path, info, ra, err)
-	})
+func walkZipFile(f *zip.File, walkFunc WalkFunc) error {
+	zFile, err := f.Open()
+	if err != nil {
+		err = walkFunc(f.Name, f.FileInfo(), nil, err)
+	} else {
+		var ra io.ReaderAt
+		ra, err = newReaderAt(zFile, f.FileInfo().Size())
+		err = walkFunc(f.Name, f.FileInfo(), ra, err)
+	}
+	defer zFile.Close()
+	return err
 }

@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -168,8 +169,10 @@ func ArchiveWalker(archivePath string, matchers []*regexp.Regexp, t *SyncTable) 
 			return nil
 		}
 
+		// make all paths unix paths
+		unixPath := path.Join("/", strings.ReplaceAll(filePath, "\\", "/"))
 		for _, s := range symbols {
-			AppendSymbol(t, fmt.Sprintf("%s:%s", archivePath, filepath.Join("/", filePath)), s)
+			AppendSymbol(t, fmt.Sprintf("%s:%s", archivePath, unixPath), s)
 		}
 		return nil
 	}

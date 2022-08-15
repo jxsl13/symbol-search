@@ -10,7 +10,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "${fileDirname}",
-            "args": ["gnutls", "/DBA"]
+            "args": ["gnu", "/DBA/gnu/win/"]
         }
     ]
 }
