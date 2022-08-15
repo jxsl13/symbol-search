@@ -7,7 +7,9 @@ versions of dynamically linked or statically linked libraries.
 The first argument expects a comma separated list of regular expressions.
 The second argument is the root path that is used to start the search for binaries or shared libraries.
 ```sh
-./symbol-search "gnutls,gnu" /path/to/dir/or/single/file
+./symbol-search "gnutls_pkcs7_verify" /path/to/dir/or/single/file
+
+./symbol-search "gnutls_pkcs7_verify" /path/to/dir/or/single/file -o report.txt
 ```
 
 ## Installation

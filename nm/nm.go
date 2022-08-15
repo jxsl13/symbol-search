@@ -14,12 +14,13 @@ var (
 func NewSymbols(file io.ReaderAt) ([]Symbol, error) {
 	s, err := SymbolsELF(file)
 	if err == nil {
-		return s, nil
+
+		return cleanupSymbols(s), nil
 	}
 
 	s, err = SymbolsPE(file)
 	if err == nil {
-		return s, nil
+		return cleanupSymbols(s), nil
 	}
 
 	return nil, err
@@ -52,4 +53,37 @@ func GetFilteredSymbols(path string, matchers []*regexp.Regexp) ([]Symbol, error
 	}
 	defer f.Close()
 	return NewFilteredSymbols(f, matchers)
+}
+
+func cleanupSymbols(ss []Symbol) []Symbol {
+	m := make(map[string]Symbol, len(ss))
+
+	for _, s := range ss {
+		if s.Name == "" {
+			continue
+		}
+		v, found := m[s.Name]
+		if !found {
+			m[s.Name] = s
+			continue
+		}
+		m[s.Name] = Symbol{
+			Name:    useNotEmpty(s.Name, v.Name),
+			Version: useNotEmpty(s.Version, v.Version),
+			Library: useNotEmpty(s.Library, v.Library),
+		}
+	}
+
+	result := make([]Symbol, 0, len(ss))
+	for _, v := range m {
+		result = append(result, v)
+	}
+	return result
+}
+
+func useNotEmpty(a, b string) string {
+	if a == "" {
+		return b
+	}
+	return b
 }
