@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jxsl13/symbol-search/archive"
@@ -25,6 +26,7 @@ var (
 	Matchers []*regexp.Regexp
 	RootPath string
 	Output   string
+	Start    = time.Now()
 )
 
 func init() {
@@ -47,6 +49,7 @@ func init() {
 
 	RootPath = os.Args[2]
 	pflag.StringVarP(&Output, "output", "o", "", "define report output path")
+	pflag.IntVarP(&cwalk.NumWorkers, "num-workers", "n", cwalk.NumWorkers, "number of concurrent routines")
 	pflag.Parse()
 
 	if strings.HasPrefix(Output, "./") || strings.HasPrefix(Output, ".\\") {
@@ -70,7 +73,7 @@ func main() {
 	canvas := NewCanvas()
 	defer canvas.Close()
 
-	err = cwalk.Walk(RootPath, WalkFunc(canvas, Matchers))
+	err = cwalk.Walk(RootPath, WalkFunc(canvas, Matchers, Start))
 	if err != nil {
 		printErr(err)
 		return
@@ -96,7 +99,7 @@ func plural(i int64) string {
 	return ""
 }
 
-func WalkFunc(canvas *Canvas, matchers []*regexp.Regexp) filepath.WalkFunc {
+func WalkFunc(canvas *Canvas, matchers []*regexp.Regexp, start time.Time) filepath.WalkFunc {
 	permErrCnt := int64(0)
 	seenCnt := int64(0)
 
@@ -107,7 +110,7 @@ func WalkFunc(canvas *Canvas, matchers []*regexp.Regexp) filepath.WalkFunc {
 			visited := atomic.AddInt64(&seenCnt, 1)
 			denied := atomic.LoadInt64(&permErrCnt)
 
-			t.SetCaption("%d file%s visited, %d access denied", visited, plural(visited), denied)
+			t.SetCaption("%d file%s visited, %d access denied, time elapsed: %s", visited, plural(visited), denied, time.Since(start))
 			canvas.Paint(t.Render())
 		}()
 		if err != nil {
