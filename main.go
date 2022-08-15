@@ -135,12 +135,6 @@ func WalkFunc(canvas *Canvas, matchers []*regexp.Regexp) filepath.WalkFunc {
 			}
 		}
 
-		// everything below 10kb woul dnot be able to have
-		// enough functions in order to execute code
-		if info.Size() < 10_000 {
-			return nil
-		}
-
 		symbols, err := nm.GetFilteredSymbols(path, matchers)
 		if err != nil {
 			if errors.Is(err, os.ErrPermission) {
