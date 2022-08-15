@@ -6,7 +6,10 @@ import (
 	"regexp"
 )
 
-var UnknownLibrary = "unknown"
+var (
+	UnknownLibrary = "unknown"
+	UnknownVersion = "unknown"
+)
 
 func NewSymbols(file io.ReaderAt) ([]Symbol, error) {
 	s, err := SymbolsELF(file)
