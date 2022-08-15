@@ -18,7 +18,7 @@ var supportedExtensions = map[string]bool{
 	".7z":  true,
 }
 
-// WalkFunc defines the function in order to efficiently walk ove rthe archive
+// WalkFunc defines the function in order to efficiently walk over the archive
 type WalkFunc func(path string, info fs.FileInfo, file io.ReaderAt, err error) error
 
 func IsSupported(path string) bool {
@@ -57,10 +57,13 @@ func newReaderAt(fi io.Reader, size int64) (io.ReaderAt, error) {
 		defer c.Close()
 	}
 
-	buf := bytes.NewBuffer(make([]byte, size))
-	_, err := io.Copy(buf, fi)
+	buf := bytes.NewBuffer(make([]byte, 0, size))
+	written, err := io.Copy(buf, fi)
 	if err != nil {
 		return nil, err
+	}
+	if written != size {
+		return nil, fmt.Errorf("could buffer file in archive: size mismatch: expected %d, got %d", size, written)
 	}
 
 	return bytes.NewReader(buf.Bytes()), nil

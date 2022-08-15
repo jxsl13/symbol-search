@@ -91,7 +91,7 @@ func WalkFunc(canvas *Canvas, matchers []*regexp.Regexp) filepath.WalkFunc {
 		}
 
 		if archive.IsSupported(path) {
-			err = archive.Walk(path, ArchiveWalker(matchers, t))
+			err = archive.Walk(path, ArchiveWalker(path, matchers, t))
 			if err != nil {
 				if errors.Is(err, os.ErrPermission) {
 					atomic.AddInt64(&permErrCnt, 1)
@@ -121,18 +121,23 @@ func WalkFunc(canvas *Canvas, matchers []*regexp.Regexp) filepath.WalkFunc {
 	}
 }
 
-func ArchiveWalker(matchers []*regexp.Regexp, t *SyncTable) archive.WalkFunc {
-	return func(path string, info fs.FileInfo, file io.ReaderAt, err error) error {
+func ArchiveWalker(archivePath string, matchers []*regexp.Regexp, t *SyncTable) archive.WalkFunc {
+	return func(filePath string, info fs.FileInfo, file io.ReaderAt, err error) error {
 		if err != nil {
 			return nil
 		}
+
+		if info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			return nil
+		}
+
 		symbols, err := nm.NewFilteredSymbols(file, matchers)
 		if err != nil {
 			return nil
 		}
 
 		for _, s := range symbols {
-			AppendSymbol(t, path, s)
+			AppendSymbol(t, fmt.Sprintf("%s:%s", archivePath, filepath.Join("/", filePath)), s)
 		}
 		return nil
 	}

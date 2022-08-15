@@ -2,6 +2,7 @@ package archive
 
 import (
 	"archive/tar"
+	"bytes"
 	"errors"
 	"io"
 )
@@ -30,12 +31,28 @@ func WalkTar(file io.Reader, walkFunc WalkFunc) error {
 		}
 
 		fi := header.FileInfo()
-		ra, err := newReaderAt(tr, fi.Size())
 
-		// the target location where the dir/file should be created
-		err = walkFunc(header.Name, fi, ra, err)
-		if err != nil {
-			return err
+		switch header.Typeflag {
+		// skip symlinks
+		case tar.TypeSymlink:
+			continue
+		case tar.TypeDir:
+			// don't read directories
+			err = walkFunc(header.Name, fi, bytes.NewReader(nil), nil)
+			if err != nil {
+				return err
+			}
+			continue
+		default:
+			// read files
+			ra, err := newReaderAt(tr, fi.Size())
+
+			// the target location where the dir/file should be created
+			err = walkFunc(header.Name, fi, ra, err)
+			if err != nil {
+				return err
+			}
+
 		}
 	}
 }
