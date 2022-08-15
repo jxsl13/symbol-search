@@ -50,6 +50,12 @@ func (c *Canvas) Flush() {
 	}
 }
 
+func (c *Canvas) Save(filePath string) error {
+	fmt.Println(c.buffer)
+
+	return os.WriteFile(filePath, []byte(c.buffer), 0700)
+}
+
 func clearTerminal() {
 	switch runtime.GOOS {
 	case "darwin":

@@ -18,15 +18,17 @@ import (
 	"github.com/jxsl13/symbol-search/nm"
 
 	"github.com/jxsl13/cwalk"
+	"github.com/spf13/pflag"
 )
 
 var (
 	Matchers []*regexp.Regexp
 	RootPath string
+	Output   string
 )
 
 func init() {
-	if len(os.Args) != 3 {
+	if len(os.Args) < 3 {
 		log.Fatalln("please provide a symbol name (or , separated list) as the first argument and a path as the second argument")
 	}
 
@@ -44,14 +46,47 @@ func init() {
 	}
 
 	RootPath = os.Args[2]
+	pflag.StringVarP(&Output, "output", "o", "", "define report output path")
+	pflag.Parse()
+
+	if strings.HasPrefix(Output, "./") || strings.HasPrefix(Output, ".\\") {
+		cwd, err := os.Getwd()
+		if err != nil {
+			printErr(err)
+			os.Exit(1)
+		}
+		Output = filepath.Join(cwd, Output)
+	}
 }
 
 func main() {
+	var err error
+	defer func() {
+		if err != nil {
+			os.Exit(1)
+		}
+	}()
+
 	canvas := NewCanvas()
 	defer canvas.Close()
 
-	err := cwalk.Walk(RootPath, WalkFunc(canvas, Matchers))
-	checkErr(err)
+	err = cwalk.Walk(RootPath, WalkFunc(canvas, Matchers))
+	if err != nil {
+		printErr(err)
+		return
+	}
+
+	if Output == "" {
+		fmt.Println("Done!")
+		return
+	}
+
+	err = canvas.Save(Output)
+	if err != nil {
+		printErr(err)
+		return
+	}
+	fmt.Printf("report saved at: %s\n", Output)
 }
 
 func plural(i int64) string {
@@ -147,31 +182,29 @@ func AppendSymbol(t *SyncTable, path string, s nm.Symbol) {
 	t.AppendRow(table.Row{path, s.Name, s.Version, s.Library})
 }
 
-func checkErr(err error) {
-	if err != nil {
-		if er, ok := err.(cwalk.WalkerErrorList); ok {
-			fmt.Println("We encountered a few errors along the way which ")
-			m := make(map[string]struct{}, len(er.ErrorList))
+func printErr(err error) {
+	if er, ok := err.(cwalk.WalkerErrorList); ok {
+		fmt.Fprintln(os.Stderr, "Errors:")
+		m := make(map[string]struct{}, len(er.ErrorList))
 
-			for _, e := range er.ErrorList {
-				m[e.Error()] = struct{}{}
-			}
-			er.ErrorList = er.ErrorList[:0]
-
-			sl := make([]string, 0, len(m))
-			for k := range m {
-				sl = append(sl, k)
-			}
-
-			sort.Strings(sl)
-
-			for _, s := range sl {
-				fmt.Println(s)
-			}
-
-		} else {
-			fmt.Fprintf(os.Stderr, "Error: %v", err)
-			os.Exit(1)
+		for _, e := range er.ErrorList {
+			m[e.Error()] = struct{}{}
 		}
+		er.ErrorList = er.ErrorList[:0]
+
+		sl := make([]string, 0, len(m))
+		for k := range m {
+			sl = append(sl, k)
+		}
+
+		sort.Strings(sl)
+
+		for _, s := range sl {
+			fmt.Fprintln(os.Stderr, s)
+		}
+
+	} else {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 	}
+
 }
