@@ -3,7 +3,6 @@ package nm
 import (
 	"debug/pe"
 	"io"
-	"strconv"
 )
 
 func SymbolsPE(file io.ReaderAt) ([]Symbol, error) {
@@ -13,13 +12,21 @@ func SymbolsPE(file io.ReaderAt) ([]Symbol, error) {
 	}
 	defer f.Close()
 
-	result := make([]Symbol, 0, len(f.Symbols))
-	for _, s := range f.Symbols {
-		result = append(result, Symbol{
-			Name:    s.Name,
-			Version: strconv.Itoa(int(s.Value)),
-			Library: UnknownLibrary,
-		})
+	result := make([]Symbol, 0, len(f.COFFSymbols))
+	for _, s := range f.COFFSymbols {
+		name, err := s.FullName(f.StringTable)
+		if err == nil {
+			result = append(result, NewSymbol(name, "", ""))
+		} else {
+			result = append(result, NewSymbol(string(s.Name[:]), "", ""))
+		}
+	}
+
+	imported, err := f.ImportedSymbols()
+	if err == nil {
+		for _, s := range imported {
+			result = append(result, NewSymbol(s, "", ""))
+		}
 	}
 
 	return result, nil

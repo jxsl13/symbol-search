@@ -49,25 +49,16 @@ func NewSymbol(name, version, library string) Symbol {
 
 	// occasionally we get versions with double @@ instead of most likely a single one which
 	// is used to split the version from the symbol name
-	if !strings.Contains(name, "@@") {
-		return Symbol{
-			Name:    name,
-			Version: defaultIfEmpty(version, UnknownVersion),
-			Library: defaultIfEmpty(library, UnknownLibrary),
-		}
+	if strings.Contains(name, "@@") {
+		ss := strings.SplitN(name, "@@", 2)
+		name = ss[0]
+		version = ss[1]
+	} else if strings.Contains(name, ":") {
+		ss := strings.SplitN(name, ":", 2)
+		name = ss[0]
+		library = ss[1]
 	}
 
-	if version != "" {
-		return Symbol{
-			Name:    name,
-			Version: version,
-			Library: defaultIfEmpty(library, UnknownLibrary),
-		}
-	}
-
-	ss := strings.SplitN(name, "@@", 2)
-	name = ss[0]
-	version = ss[1]
 	return Symbol{
 		Name:    name,
 		Version: defaultIfEmpty(version, UnknownVersion),
