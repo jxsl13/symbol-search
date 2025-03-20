@@ -5,11 +5,48 @@ import (
 	"sync"
 
 	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/jxsl13/symbol-search/nm"
 )
 
 type SyncTable struct {
 	mu sync.Mutex
 	t  table.Writer
+}
+
+func NewTable() *SyncTable {
+	t := table.NewWriter()
+
+	header := append(table.Row{"Path"}, (&nm.Symbol{}).Header()...)
+	t.AppendHeader(header)
+	t.AppendSeparator()
+
+	sortBy := make([]table.SortBy, 0, len(header))
+	columnConfig := make([]table.ColumnConfig, 0, len(header))
+	for i, _ := range header {
+		sortBy = append(sortBy, table.SortBy{
+			Number: i + 1,
+			Mode:   table.Asc,
+		})
+
+		columnConfig = append(columnConfig, table.ColumnConfig{
+			Number:    i + 1,
+			AutoMerge: true,
+		})
+	}
+	t.AppendSeparator()
+	t.SortBy(sortBy)
+	t.SetColumnConfigs(columnConfig)
+
+	t.SetStyle(table.StyleLight)
+	t.Style().Options.SeparateRows = true
+
+	return &SyncTable{
+		t: t,
+	}
+}
+
+func (t *SyncTable) AppendSymbol(path string, s nm.Symbol) {
+	t.AppendRow(append(table.Row{path}, s.Row()...))
 }
 
 func (t *SyncTable) AppendFooter(row table.Row, configs ...table.RowConfig) {
@@ -87,7 +124,7 @@ func (t *SyncTable) SetAutoIndex(autoIndex bool) {
 	defer t.mu.Unlock()
 	t.t.SetAutoIndex(autoIndex)
 }
-func (t *SyncTable) SetCaption(format string, a ...interface{}) {
+func (t *SyncTable) SetCaption(format string, a ...any) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.t.SetCaption(format, a...)
@@ -122,7 +159,7 @@ func (t *SyncTable) SetStyle(style table.Style) {
 	defer t.mu.Unlock()
 	t.t.SetStyle(style)
 }
-func (t *SyncTable) SetTitle(format string, a ...interface{}) {
+func (t *SyncTable) SetTitle(format string, a ...any) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.t.SetTitle(format, a...)

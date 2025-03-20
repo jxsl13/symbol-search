@@ -2,75 +2,97 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"runtime"
-	"time"
+	"sync"
 )
 
 type Canvas struct {
-	lastTimePainted time.Time
-	buffer          string
-	errors          []error
+	clearWorks bool
+	out        io.Writer
+
+	mu     sync.Mutex
+	buffer string
+	errors []error
 }
 
-func (c *Canvas) Close() {
-	// flush last state
-	c.Flush()
-}
-
-func NewCanvas() *Canvas {
+func NewCanvas(out io.Writer) *Canvas {
 	c := &Canvas{
-		lastTimePainted: time.Now(),
-		errors:          []error{},
+		out:    out,
+		errors: []error{},
 	}
+
+	err := c.clear(out)
+	if err == nil {
+		c.clearWorks = true
+	}
+
 	return c
 }
 
-func (c *Canvas) Paint(s string) {
-	c.buffer = s
-	if time.Since(c.lastTimePainted) > 5*time.Second {
-		clearTerminal()
-		fmt.Println(s)
-		c.lastTimePainted = time.Now()
-	}
+func (c *Canvas) Paint(table *SyncTable) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.buffer = table.Render()
+	c.flush()
+	return nil
 }
 
 // Error collects error messages in order to print them at the end
 func (c *Canvas) Error(err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.errors = append(c.errors, err)
 }
 
 func (c *Canvas) Flush() {
-	clearTerminal()
-	fmt.Println(c.buffer)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.flush()
+}
+
+func (c *Canvas) flush() {
+	c.clearTerminal(c.out)
+	fmt.Fprint(c.out, c.buffer)
 
 	for idx, err := range c.errors {
-		fmt.Fprintln(os.Stderr, idx, err)
+		fmt.Fprintln(c.out, idx, err)
 	}
 }
 
-func (c *Canvas) Save(filePath string) error {
-	fmt.Println(c.buffer)
-
-	return os.WriteFile(filePath, []byte(c.buffer), 0700)
+func (c *Canvas) Buffer() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.buffer
 }
 
-func clearTerminal() {
+func (c *Canvas) clearTerminal(out io.Writer) {
+	if c.clearWorks {
+		c.clear(out)
+	}
+}
+
+func (c *Canvas) clear(out io.Writer) error {
 	switch runtime.GOOS {
 	case "darwin":
-		runCmd("clear")
+		return runCmd(out, "clear")
 	case "linux":
-		runCmd("clear")
+		return runCmd(out, "clear")
 	case "windows":
-		runCmd("cmd", "/c", "cls")
+		return runCmd(out, "cmd", "/c", "cls")
 	default:
-		runCmd("clear")
+		return runCmd(out, "clear")
 	}
 }
 
-func runCmd(name string, arg ...string) {
+func runCmd(out io.Writer, name string, arg ...string) error {
 	cmd := exec.Command(name, arg...)
-	cmd.Stdout = os.Stdout
-	cmd.Run()
+	cmd.Env = os.Environ()
+	cmd.Stdout = out
+	cmd.Stderr = out
+	return cmd.Run()
 }
