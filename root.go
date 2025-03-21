@@ -185,13 +185,16 @@ func (cli *RootContext) Done() error {
 	}
 }
 
-func (cli *RootContext) WalkFunc(filePath string, info fs.FileInfo, err error) error {
-	if err != nil {
-		err = cli.mapFSError(err)
-		if err != nil {
-			return fmt.Errorf("failed to walk path %s: %w", filePath, err)
+func (cli *RootContext) WalkFunc(filePath string, info fs.FileInfo, err error) (rerr error) {
+	defer func() {
+		if rerr != nil {
+			rerr = fmt.Errorf("failed to walk path %s: %w", filePath, rerr)
+			rerr = cli.mapFSError(rerr)
 		}
-		return nil
+	}()
+
+	if err != nil {
+		return err
 	}
 
 	err = cli.Done()
@@ -212,11 +215,7 @@ func (cli *RootContext) WalkFunc(filePath string, info fs.FileInfo, err error) e
 			cli.ArchiveWalker(unixPath),
 		)
 		if err != nil {
-			err = cli.mapFSError(err)
-			if err != nil {
-				return fmt.Errorf("failed to walk path %s: %w", filePath, err)
-			}
-			return nil
+			return err
 		}
 
 		return nil
@@ -239,11 +238,7 @@ func (cli *RootContext) WalkFunc(filePath string, info fs.FileInfo, err error) e
 
 	f, err := os.Open(filePath)
 	if err != nil {
-		err = cli.mapFSError(err)
-		if err != nil {
-			return fmt.Errorf("failed to walk path %s: %w", filePath, err)
-		}
-		return nil
+		return err
 	}
 	defer f.Close()
 
@@ -255,12 +250,12 @@ func (cli *RootContext) WalkFunc(filePath string, info fs.FileInfo, err error) e
 func (cli *RootContext) ArchiveWalker(archivePath string) archivewalker.WalkFunc {
 	return func(filePath string, info fs.FileInfo, r io.Reader, err error) error {
 		if err != nil {
-			return fmt.Errorf("archive walker failed: %w", err)
+			return fmt.Errorf("archive walker failed for archive %s: %w", archivePath, err)
 		}
 
 		err = cli.Done()
 		if err != nil {
-			return fmt.Errorf("archive walker failed: %w", err)
+			return fmt.Errorf("archive walker failed for archive %s: %w", archivePath, err)
 		}
 
 		if info.IsDir() || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
@@ -288,7 +283,7 @@ func (cli *RootContext) ArchiveWalker(archivePath string) archivewalker.WalkFunc
 		// read file into memory
 		f, err := archivewalker.NewFile(r, info.Size())
 		if err != nil {
-			return fmt.Errorf("archive walker failed: failed to read file %s into memory: %w", filePath, err)
+			return fmt.Errorf("archive walker failed fo archive %s: failed to read file %s into memory: %w", archivePath, filePath, err)
 		}
 
 		fullUnixPath := strings.Join([]string{archivePath, unixPath}, string(filepath.ListSeparator))
