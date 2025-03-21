@@ -92,8 +92,6 @@ github.com/jxsl13/archivewalker v0.1.1 h1:hy31y1Wk8vsG2RuYvgIM4AT1zNt1g+qpBRQR53
 github.com/jxsl13/archivewalker v0.1.1/go.mod h1:g9s/elwpyO4iUMDNlC6rpBM8CXg99XokRghoTB3VmBs=
 github.com/jxsl13/cli-config-boilerplate v0.1.0 h1:cMcOSYH+gypW/nTOjOdVVP06gNnyZ43pjI3KeDIqDqE=
 github.com/jxsl13/cli-config-boilerplate v0.1.0/go.mod h1:X8bb+MWOJB+4IPcMJgQMRBPkNPveBhms+D1kwmQ/aa0=
-github.com/jxsl13/cwalk v1.1.0 h1:9lEIhELOdu1axqtgjIl2sBw2OTIzaMvKVGBullucPFM=
-github.com/jxsl13/cwalk v1.1.0/go.mod h1:WUKsxeXxf2Hk6nE27uL2czbThjqzrnSLJVxl1VSsCx4=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/klauspost/compress v1.18.0 h1:c/Cqfb0r+Yi+JtIEq73FWXVkRonBlf0CRNYc8Zttxdo=
 github.com/klauspost/compress v1.18.0/go.mod h1:2Pp+KzxcywXVXMr50+X0Q/Lsb43OQHYWRCY2AiWywWQ=

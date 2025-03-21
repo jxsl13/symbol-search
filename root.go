@@ -15,7 +15,6 @@ import (
 
 	"github.com/jxsl13/archivewalker"
 	"github.com/jxsl13/cli-config-boilerplate/cliconfig"
-	"github.com/jxsl13/cwalk"
 	"github.com/jxsl13/symbol-search/config"
 	"github.com/jxsl13/symbol-search/nm"
 	"github.com/spf13/cobra"
@@ -58,6 +57,8 @@ type RootContext struct {
 	table     *SyncTable
 	canvas    *Canvas
 	lastPaint time.Time
+
+	concurrency chan struct{}
 
 	filesSeen            int64
 	permissionError      int64
@@ -121,9 +122,9 @@ func (cli *RootContext) PreRunE(cmd *cobra.Command) func(*cobra.Command, []strin
 		cli.start = time.Now()
 
 		// limit the number of concurrent workers
-		cwalk.NumWorkers = cli.cfg.Concurrency
 		cli.canvas = NewCanvas(cli.stdout)
 		cli.lastPaint = time.Now().Add(-cli.cfg.PaintInterval)
+		cli.concurrency = make(chan struct{}, cli.cfg.Concurrency)
 
 		return nil
 	}
@@ -134,8 +135,25 @@ func (cli *RootContext) PostRunE(*cobra.Command, []string) error {
 }
 
 func (cli *RootContext) RunE(cmd *cobra.Command, args []string) (err error) {
+	defer func() {
+		err = errors.Join(err, cli.Done())
+	}()
 
-	err = cwalk.Walk(cli.cfg.SearchDir, cli.WalkFunc())
+	err = filepath.Walk(cli.cfg.SearchDir, func(path string, info fs.FileInfo, err error) error {
+		select {
+		case cli.concurrency <- struct{}{}:
+			go func(path string, info fs.FileInfo, err error) error {
+				defer func() {
+					<-cli.concurrency
+				}()
+				return cli.WalkFunc(path, info, err)
+			}(path, info, err)
+
+		case <-cli.ctx.Done():
+			return filepath.SkipAll
+		}
+		return nil
+	})
 	if err != nil {
 		return err
 	}
@@ -167,70 +185,89 @@ func (cli *RootContext) Done() error {
 	}
 }
 
-func (cli *RootContext) WalkFunc() filepath.WalkFunc {
-
-	return func(filePath string, info fs.FileInfo, err error) error {
+func (cli *RootContext) WalkFunc(filePath string, info fs.FileInfo, err error) error {
+	if err != nil {
+		err = cli.mapFSError(err)
 		if err != nil {
-			return cli.mapFSError(err)
+			return fmt.Errorf("failed to walk path %s: %w", filePath, err)
 		}
-
-		err = cli.Done()
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
-			return nil
-		}
-
-		// make all paths unix paths
-		unixPath := toUnixPath(filePath)
-
-		if cli.cfg.IsMatchingArchive(unixPath) {
-			err = archivewalker.Walk(
-				filePath,
-				cli.ArchiveWalker(unixPath),
-			)
-			if err != nil {
-				return cli.mapFSError(err)
-			}
-
-			return nil
-		}
-
-		if !cli.cfg.IsMatchingFilePath(unixPath) {
-			return nil
-		}
-
-		fileName := path.Base(unixPath)
-		if !cli.cfg.IsMatchingFileName(fileName) {
-			// do not read the file into memory if
-			// its path is not expected to be the file that we are looking for
-			return nil
-		}
-
-		f, err := os.Open(filePath)
-		if err != nil {
-			return cli.mapFSError(err)
-		}
-		defer f.Close()
-
-		return cli.SymbolWalker(unixPath, f)
+		return nil
 	}
+
+	err = cli.Done()
+	if err != nil {
+		return filepath.SkipAll
+	}
+
+	if info.IsDir() || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
+		return nil
+	}
+
+	// make all paths unix paths
+	unixPath := toUnixPath(filePath)
+
+	if cli.cfg.IsMatchingArchive(unixPath) {
+		err = archivewalker.Walk(
+			filePath,
+			cli.ArchiveWalker(unixPath),
+		)
+		if err != nil {
+			err = cli.mapFSError(err)
+			if err != nil {
+				return fmt.Errorf("failed to walk path %s: %w", filePath, err)
+			}
+			return nil
+		}
+
+		return nil
+	}
+
+	if !cli.cfg.IsMatchingFileMode(info.Mode()) {
+		return nil
+	}
+
+	if !cli.cfg.IsMatchingFilePath(unixPath) {
+		return nil
+	}
+
+	fileName := path.Base(unixPath)
+	if !cli.cfg.IsMatchingFileName(fileName) {
+		// do not read the file into memory if
+		// its path is not expected to be the file that we are looking for
+		return nil
+	}
+
+	f, err := os.Open(filePath)
+	if err != nil {
+		err = cli.mapFSError(err)
+		if err != nil {
+			return fmt.Errorf("failed to walk path %s: %w", filePath, err)
+		}
+		return nil
+	}
+	defer f.Close()
+
+	cli.SymbolWalker(unixPath, f, info.Mode())
+	return nil
+
 }
 
 func (cli *RootContext) ArchiveWalker(archivePath string) archivewalker.WalkFunc {
 	return func(filePath string, info fs.FileInfo, r io.Reader, err error) error {
 		if err != nil {
-			return err
+			return fmt.Errorf("archive walker failed: %w", err)
 		}
 
 		err = cli.Done()
 		if err != nil {
-			return err
+			return fmt.Errorf("archive walker failed: %w", err)
 		}
 
 		if info.IsDir() || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
+			return nil
+		}
+
+		if !cli.cfg.IsMatchingFileMode(info.Mode()) {
 			return nil
 		}
 
@@ -251,11 +288,12 @@ func (cli *RootContext) ArchiveWalker(archivePath string) archivewalker.WalkFunc
 		// read file into memory
 		f, err := archivewalker.NewFile(r, info.Size())
 		if err != nil {
-			return fmt.Errorf("failed to read file %s into memory: %w", filePath, err)
+			return fmt.Errorf("archive walker failed: failed to read file %s into memory: %w", filePath, err)
 		}
 
 		fullUnixPath := strings.Join([]string{archivePath, unixPath}, string(filepath.ListSeparator))
-		return cli.SymbolWalker(fullUnixPath, f)
+		cli.SymbolWalker(fullUnixPath, f, info.Mode())
+		return nil
 	}
 }
 
@@ -313,7 +351,7 @@ func (cli *RootContext) ThrottledPaint() {
 }
 
 // filepath is either a normal file path or a concatenated filespath that points into an archive
-func (cli *RootContext) SymbolWalker(filePath string, file archivewalker.File) error {
+func (cli *RootContext) SymbolWalker(filePath string, file archivewalker.File, mode fs.FileMode) {
 	numErr := 0
 	numTries := 0
 	numSymbols := 0
@@ -323,12 +361,12 @@ func (cli *RootContext) SymbolWalker(filePath string, file archivewalker.File) e
 		if numErr == numTries {
 			cli.IncFailedSymbolReads()
 			if cli.cfg.Debug {
-				cli.Printf("read failed for file: %s (tries=%d)\n", filePath, numTries)
+				cli.Printf("read failed for file: %s (tries=%d, mode=%#o)\n", filePath, numTries, mode)
 			}
 		} else {
 			cli.IncSucceededSymbolReads()
 			if cli.cfg.Debug {
-				cli.Printf("read succeeded for file: %s (tries=%d symbols=%d)\n", filePath, numTries, numSymbols)
+				cli.Printf("read succeeded for file: %s (tries=%d symbols=%d mode=%#o)\n", filePath, numTries, numSymbols, mode)
 			}
 		}
 
@@ -341,7 +379,7 @@ func (cli *RootContext) SymbolWalker(filePath string, file archivewalker.File) e
 		if eerr == nil {
 			numSymbols = len(symbols)
 			cli.AppendSymbols(filePath, symbols)
-			return nil
+			return
 		}
 		numErr++
 	}
@@ -352,12 +390,11 @@ func (cli *RootContext) SymbolWalker(filePath string, file archivewalker.File) e
 		if perr == nil {
 			numSymbols = len(symbols)
 			cli.AppendSymbols(filePath, symbols)
-			return nil
+			return
 		}
 		numErr++
 	}
 
-	return nil
 }
 
 func (cli *RootContext) ReadELF(file io.ReaderAt) (_ []nm.Symbol, err error) {

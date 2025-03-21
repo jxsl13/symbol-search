@@ -6,7 +6,6 @@ require (
 	github.com/jedib0t/go-pretty/v6 v6.3.6
 	github.com/jxsl13/archivewalker v0.1.1
 	github.com/jxsl13/cli-config-boilerplate v0.1.0
-	github.com/jxsl13/cwalk v1.1.0
 	github.com/spf13/cobra v1.9.1
 )
 

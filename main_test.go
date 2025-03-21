@@ -7,14 +7,13 @@ import (
 )
 
 func TestSymbolSearch(t *testing.T) {
-
-	path := "/DBA/gnu/snk-1.5.7_x64/lib/perl5/site_perl/5.36.1/x86_64-linux-thread-multi/auto/Sybase/"
+	path := "/home/behm015"
 
 	out, err := testutils.Execute(
 		NewRootCmd(t.Context()),
 		"-v",
 		"-s",
-		"unisem_RegisterCallbacks",
+		".*",
 		"-f",
 		path,
 	)
