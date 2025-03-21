@@ -32,12 +32,12 @@ func NewCanvas(out io.Writer) *Canvas {
 	return c
 }
 
-func (c *Canvas) Paint(table *SyncTable) error {
+func (c *Canvas) Paint(table *SyncTable, clear bool) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	c.buffer = table.Render()
-	c.flush()
+	c.flush(clear)
 	return nil
 }
 
@@ -49,14 +49,17 @@ func (c *Canvas) Error(err error) {
 	c.errors = append(c.errors, err)
 }
 
-func (c *Canvas) Flush() {
+func (c *Canvas) Flush(clear bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.flush()
+	c.flush(clear)
 }
 
-func (c *Canvas) flush() {
-	c.clearTerminal(c.out)
+func (c *Canvas) flush(clear bool) {
+	if clear {
+		c.clearTerminal(c.out)
+	}
+
 	fmt.Fprint(c.out, c.buffer)
 
 	for idx, err := range c.errors {

@@ -247,7 +247,7 @@ func (cli *RootContext) WalkFunc(filePath string, info fs.FileInfo, err error) e
 	}
 	defer f.Close()
 
-	cli.SymbolWalker(unixPath, f, info.Mode())
+	cli.SymbolWalker(unixPath, f, info)
 	return nil
 
 }
@@ -292,7 +292,7 @@ func (cli *RootContext) ArchiveWalker(archivePath string) archivewalker.WalkFunc
 		}
 
 		fullUnixPath := strings.Join([]string{archivePath, unixPath}, string(filepath.ListSeparator))
-		cli.SymbolWalker(fullUnixPath, f, info.Mode())
+		cli.SymbolWalker(fullUnixPath, f, info)
 		return nil
 	}
 }
@@ -340,7 +340,9 @@ func (cli *RootContext) Paint() {
 	)
 
 	cli.table.SetCaption(caption)
-	cli.canvas.Paint(cli.table)
+
+	clear := !cli.cfg.Debug // keep output history in temrinal if debug is enabled
+	cli.canvas.Paint(cli.table, clear)
 }
 
 func (cli *RootContext) ThrottledPaint() {
@@ -351,10 +353,11 @@ func (cli *RootContext) ThrottledPaint() {
 }
 
 // filepath is either a normal file path or a concatenated filespath that points into an archive
-func (cli *RootContext) SymbolWalker(filePath string, file archivewalker.File, mode fs.FileMode) {
+func (cli *RootContext) SymbolWalker(filePath string, file archivewalker.File, info fs.FileInfo) {
 	numErr := 0
 	numTries := 0
 	numSymbols := 0
+	mode := info.Mode()
 
 	defer func() {
 		cli.IncFilesSeen()
@@ -384,6 +387,19 @@ func (cli *RootContext) SymbolWalker(filePath string, file archivewalker.File, m
 		numErr++
 	}
 
+	// must at least be as big as the header size of an ar archive (*.a)
+	// https://www.abhirag.com/blog/ar/
+	if !cli.cfg.NoStatic && info.Size() < 68 {
+		numTries++
+		symbols, aerr := cli.ReadAR(filePath, file)
+		if aerr == nil {
+			numSymbols = len(symbols)
+			cli.AppendSymbols(filePath, symbols)
+			return
+		}
+		numErr++
+	}
+
 	if !cli.cfg.NoPE {
 		numTries++
 		symbols, perr := cli.ReadPE(file)
@@ -394,10 +410,56 @@ func (cli *RootContext) SymbolWalker(filePath string, file archivewalker.File, m
 		}
 		numErr++
 	}
-
 }
 
-func (cli *RootContext) ReadELF(file io.ReaderAt) (_ []nm.Symbol, err error) {
+func (cli *RootContext) ReadAR(libraryPath string, file archivewalker.File) (_ []nm.Symbol, err error) {
+	defer func() {
+		_, serr := file.Seek(0, io.SeekStart)
+		if serr != nil {
+			err = errors.Join(err, serr)
+		}
+	}()
+
+	result := make([]nm.Symbol, 0, 64)
+
+	err = nm.WalkAR(file, func(filePath string, info fs.FileInfo, r io.Reader, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if filePath == "" {
+			return nil
+		}
+
+		if info.IsDir() || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
+			return nil
+		}
+
+		fullUnixPath := strings.Join([]string{libraryPath, filePath}, string(filepath.ListSeparator))
+		buf, err := archivewalker.NewFile(r, info.Size())
+		if err != nil {
+			return fmt.Errorf("failed to read file %s into memory: %w", fullUnixPath, err)
+		}
+
+		symbols, err := cli.ReadELF(buf)
+		if err != nil {
+			return nil
+		}
+		result = append(result, symbols...)
+		return nil
+	})
+
+	return result, err
+}
+
+func (cli *RootContext) ReadELF(file archivewalker.File) (_ []nm.Symbol, err error) {
+	defer func() {
+		_, serr := file.Seek(0, io.SeekStart)
+		if serr != nil {
+			err = errors.Join(err, serr)
+		}
+	}()
+
 	elf, err := nm.OpenELF(file)
 	if err != nil {
 		return nil, err
@@ -447,7 +509,14 @@ func (cli *RootContext) ReadELF(file io.ReaderAt) (_ []nm.Symbol, err error) {
 	return result, nil
 }
 
-func (cli *RootContext) ReadPE(file io.ReaderAt) (_ []nm.Symbol, err error) {
+func (cli *RootContext) ReadPE(file archivewalker.File) (_ []nm.Symbol, err error) {
+	defer func() {
+		_, serr := file.Seek(0, io.SeekStart)
+		if serr != nil {
+			err = errors.Join(err, serr)
+		}
+	}()
+
 	pe, err := nm.OpenPE(file)
 	if err != nil {
 		return nil, err

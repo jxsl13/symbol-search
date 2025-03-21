@@ -7,13 +7,17 @@ import (
 )
 
 func TestSymbolSearch(t *testing.T) {
-	path := "/home/behm015"
+	path := "~/Schreibtisch/github/snk-gnu-linux/3rd/sybase/lib"
 
 	out, err := testutils.Execute(
 		NewRootCmd(t.Context()),
+		"-t",
+		"1",
 		"-v",
+		"-n",
+		".*\\.a",
 		"-s",
-		".*",
+		"unisem",
 		"-f",
 		path,
 	)
@@ -23,5 +27,4 @@ func TestSymbolSearch(t *testing.T) {
 	}
 
 	t.Log(out.String())
-
 }

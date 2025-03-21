@@ -21,7 +21,7 @@ func ReadCOFFSymbolsPE(file *pe.File) ([]Symbol, error) {
 			return nil, err
 		}
 		section := file.Sections[s.SectionNumber].Name
-		symbol := NewSymbol(name, uint64(s.Value), 0, InternalSection+":"+section, UnknownVersion, UnknownLibrary)
+		symbol := NewSymbol(name, uint64(s.Value), 0, InternalSection, section, UnknownVersion, UnknownLibrary)
 		result = append(result, symbol)
 	}
 
@@ -36,7 +36,7 @@ func ReadImportedSymbolsPE(file *pe.File) ([]Symbol, error) {
 
 	result := make([]Symbol, 0, len(imported))
 	for _, name := range imported {
-		result = append(result, NewSymbol(name, 0, 0, ImportedSection, UnknownVersion, UnknownLibrary))
+		result = append(result, NewSymbol(name, 0, 0, ImportedSection, "", UnknownVersion, UnknownLibrary))
 	}
 
 	return result, nil

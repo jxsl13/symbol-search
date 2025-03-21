@@ -5,12 +5,40 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch Package",
+            "name": "Test Static Libraries",
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${fileDirname}",
-            "args": ["gnu", "/DBA/gnu/win/"]
+            "program": "${workspaceFolder}",
+            "args": [
+                "-t",
+                "1",
+                "-v",
+                "-n",
+                ".*\\.a",
+                "-f",
+                "~/Schreibtisch/github/snk-gnu-linux/3rd/sybase/lib/",
+                "-s",
+                "unisem",
+            ]
+        },
+        {
+            "name": "Test Windows Binaries",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}",
+            "args": [
+                "-t",
+                "1",
+                "-v",
+                "-n",
+                ".*(\\.exe||\\.dll)",
+                "-f",
+                "/DBA/gnu/win/",
+                "-s",
+                ".*",
+            ]
         }
     ]
 }

@@ -19,12 +19,14 @@ type Symbol struct {
 	Size    uint64
 	Section string
 
+	Source string
+
 	// These fields are present only for the dynamic symbol table.
 	Version string
 	Library string
 }
 
-func NewSymbol(name string, value, size uint64, section string, version, library string) Symbol {
+func NewSymbol(name string, value, size uint64, source, section string, version, library string) Symbol {
 
 	// occasionally we get versions with double @@ instead of most likely a single one which
 	// is used to split the version from the symbol name
@@ -42,6 +44,7 @@ func NewSymbol(name string, value, size uint64, section string, version, library
 		Name:    name,
 		Value:   value,
 		Size:    size,
+		Source:  source,
 		Section: section,
 		Version: defaultIfEmpty(version, UnknownVersion),
 		Library: defaultIfEmpty(library, UnknownLibrary),
@@ -50,11 +53,11 @@ func NewSymbol(name string, value, size uint64, section string, version, library
 }
 
 func (s *Symbol) Header() []any {
-	return []any{"Name", "Value", "Size", "Section", "Version", "Library"}
+	return []any{"Name", "Value", "Size", "Source", "Section", "Version", "Library"}
 }
 
 func (s *Symbol) Row() []any {
-	return []any{s.Name, s.Value, s.Size, s.Section, s.Version, s.Library}
+	return []any{s.Name, s.Value, s.Size, s.Source, s.Section, s.Version, s.Library}
 }
 
 func defaultIfEmpty(s, defaultString string) string {

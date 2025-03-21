@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/user"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -53,6 +55,7 @@ type Config struct {
 	NoELF bool `koanf:"no.elf" description:"do not parse ELF files (Linux binaries)"`
 	NoPE  bool `koanf:"no.pe" description:"do not parse PE files (Windows binaries)"`
 
+	NoStatic   bool `koanf:"no.static" description:"do not parse static libraries (*.a)"`
 	NoImported bool `koanf:"no.imported" description:"do not parse imported symbols (from dll or shared objects)"`
 	NoDynamic  bool `koanf:"no.dynamic" description:"do not parse dynamic symbols which are loaded at runtime with ldopen"`
 	NoInternal bool `koanf:"no.internal" description:"do not parse internal symbols from the binary or library itself"`
@@ -70,6 +73,17 @@ func (cfg *Config) Validate() error {
 		if err == nil {
 			cfg.SearchDir = pwd
 		}
+	}
+
+	// resolve home directory
+	if cfg.SearchDir == "~" {
+		usr, _ := user.Current()
+		dir := usr.HomeDir
+		cfg.SearchDir = dir
+	} else if strings.HasPrefix(cfg.SearchDir, "~/") || strings.HasPrefix(cfg.SearchDir, "~\\") {
+		usr, _ := user.Current()
+		dir := usr.HomeDir
+		cfg.SearchDir = filepath.Join(dir, cfg.SearchDir[2:])
 	}
 
 	_, err := os.Stat(cfg.SearchDir)

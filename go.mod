@@ -3,6 +3,7 @@ module github.com/jxsl13/symbol-search
 go 1.24.1
 
 require (
+	github.com/erikgeiser/ar v0.0.0-20230310200753-fb6b8bb217f0
 	github.com/jedib0t/go-pretty/v6 v6.3.6
 	github.com/jxsl13/archivewalker v0.1.1
 	github.com/jxsl13/cli-config-boilerplate v0.1.0
