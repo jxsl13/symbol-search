@@ -4,9 +4,16 @@ This utility can be used in order to find vulneravilities or rather vulnerable f
 You can use this utility to search for binaries or shared libraries that might potentially contain vulnerable or exploitable
 versions of dynamically linked or statically linked libraries.
 
-The first argument expects a comma separated list of regular expressions.
-The second argument is the root path that is used to start the search for binaries or shared libraries.
+Supported file formats:
 
+- Archive files (.tar, .zip, .gz, .bz2, .xz, .7z)
+- ELF (Linux) (binary, .so)
+- Static libraries (.a)
+- PE (Windows) (.exe, .dll)
+
+Not yet suported:
+
+- Mach-O (macOS) (.dylib)
 
 ## Installation
 
@@ -30,6 +37,7 @@ symbol-search -f /path/to/dir/or/single/ -o report.txt --concurrency 64 gnutls_p
 symbol-search --no-pe --no-internal -f "/path/to/dir/or/single/" '.*'
 
 ```
+
 ## Usage
 
 ```shell
