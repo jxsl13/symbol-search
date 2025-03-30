@@ -384,7 +384,7 @@ func (cli *RootContext) SymbolWalker(filePath string, file archivewalker.File, i
 
 	// must at least be as big as the header size of an ar archive (*.a)
 	// https://www.abhirag.com/blog/ar/
-	if !cli.cfg.NoStatic && info.Size() < 68 {
+	if !cli.cfg.NoStatic && info.Size() > 68 && strings.HasSuffix(filePath, ".a") {
 		numTries++
 		symbols, aerr := cli.ReadAR(filePath, file)
 		if aerr == nil {
@@ -430,13 +430,17 @@ func (cli *RootContext) ReadAR(libraryPath string, file archivewalker.File) (_ [
 			return nil
 		}
 
+		if !strings.HasSuffix(filePath, ".o") {
+			return nil
+		}
+
 		fullUnixPath := strings.Join([]string{libraryPath, filePath}, string(filepath.ListSeparator))
 		buf, err := archivewalker.NewFile(r, info.Size())
 		if err != nil {
 			return fmt.Errorf("failed to read file %s into memory: %w", fullUnixPath, err)
 		}
 
-		symbols, err := cli.ReadELF(buf)
+		symbols, err := cli.ReadMachO(buf)
 		if err != nil {
 			return nil
 		}
@@ -445,6 +449,51 @@ func (cli *RootContext) ReadAR(libraryPath string, file archivewalker.File) (_ [
 	})
 
 	return result, err
+}
+
+func (cli *RootContext) ReadMachO(file archivewalker.File) (_ []nm.Symbol, err error) {
+	defer func() {
+		_, serr := file.Seek(0, io.SeekStart)
+		if serr != nil {
+			err = errors.Join(err, serr)
+		}
+	}()
+
+	f, err := nm.OpenMachO(file)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	result := make([]nm.Symbol, 0, 1)
+	if !cli.cfg.NoImported {
+		is, err := nm.ReadImportedSymbolsMachO(f)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, s := range is {
+			if !cli.cfg.IsMatchingSymbol(s.Name) {
+				continue
+			}
+			result = append(result, s)
+		}
+	}
+
+	if !cli.cfg.NoDynamic {
+		ds, err := nm.ReadDynamicSymbolsMachO(f)
+		if err != nil {
+			return nil, err
+		}
+		for _, s := range ds {
+			if !cli.cfg.IsMatchingSymbol(s.Name) {
+				continue
+			}
+			result = append(result, s)
+		}
+	}
+
+	return result, nil
 }
 
 func (cli *RootContext) ReadELF(file archivewalker.File) (_ []nm.Symbol, err error) {

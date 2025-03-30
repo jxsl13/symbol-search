@@ -3,6 +3,7 @@ module github.com/jxsl13/symbol-search
 go 1.24.1
 
 require (
+	github.com/blacktop/go-macho v1.1.245
 	github.com/erikgeiser/ar v0.0.0-20230310200753-fb6b8bb217f0
 	github.com/jedib0t/go-pretty/v6 v6.3.6
 	github.com/jxsl13/archivewalker v0.1.1
@@ -12,6 +13,7 @@ require (
 
 require (
 	github.com/andybalholm/brotli v1.1.1 // indirect
+	github.com/blacktop/go-dwarf v1.0.14 // indirect
 	github.com/bodgit/plumbing v1.3.0 // indirect
 	github.com/bodgit/sevenzip v1.6.0 // indirect
 	github.com/bodgit/windows v1.0.1 // indirect
