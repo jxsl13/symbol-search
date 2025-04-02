@@ -43,20 +43,16 @@ symbol-search --no-pe --no-internal -f "/path/to/dir/or/single/" '.*'
 ```shell
 $ symbol-search --help
 Environment variables:
-  SEARCH_DIR           directory to search for files recursively (default: ".")
-  FILE_PATH_REGEX      comma separated list regex to match file path in the search dir or in archives (default: "[^.*$]")
-  FILE_NAME_REGEX      comma separated list regex to match file name in the search dir or in archives (default: "[^([^\\.]+|.+\\.(so|a|dll|lib|exe))$]")
-  INCLUDE_ARCHIVE      search inside archive files (default: "false")
-  ARCHIVE_REGEX        regex to match archive files in the search dir (default: "\\.(gz|tgz|xz||zst|bz2|tar|zip|7z)$")
-  SYMBOL_NAME_REGEX    comma separated list regex to match symbol name in the search dir or in archives (default: "[.*]")
-  CONCURRENCY          number of concurrent workers to use (default: "6")
-  OUTPUT_FILE          output file to write the results to
-  NO_ELF               do not parse ELF files (Linux binaries) (default: "false")
-  NO_PE                do not parse PE files (Windows binaries) (default: "false")
-  NO_IMPORTED          do not parse imported symbols (from dll or shared objects) (default: "false")
-  NO_DYNAMIC           do not parse dynamic symbols which are loaded at runtime with ldopen (default: "false")
-  NO_INTERNAL          do not parse internal symbols from the binary or library itself (default: "false")
-  DEBUG                enable debug output (default: "false")
+  SEARCH_DIR            directory, file or archive to search for symbols recursively (default: ".")
+  FILE_PATH_REGEX       optional comma separated list regex to match the file's parent path in the search dir or in archives (default: "[]")
+  FILE_NAME_REGEX       mandatory comma separated list regex to match file name in the search dir or in archives (default: "[^([^\\.]+|.+\\.(so|a|dll|lib|exe|dylib))$]")
+  FILE_MODE             optional comma separated list of file mode masks to match against (e.g. 0555, 0755, 0640, mode&mask == mask) (default: "[0500 0444]")
+  NO_ARCHIVE            disables searching inside of archives (default: "false")
+  ARCHIVE_REGEX         regex to match archive files in the search dir (default: "\\.(gz|tgz|xz||zst|bz2|tar|zip|7z)$")
+  SYMBOL_NAME_REGEX     mandatory comma separated list of regex to match symbol name in binaries or libraries (default: "[]")
+  SECTION_NAME_REGEX    optional comma separated list of regex to match section name in binaries or libraries (default: "[.*]")
+  OUTPUT_FILE           output file to write the results to
+  DEBUG                 enable debug output (default: "false")
 
 Usage:
   symbol-search [flags]
@@ -67,21 +63,17 @@ Available Commands:
   help        Help about any command
 
 Flags:
-  -a, --archive-regex string       regex to match archive files in the search dir (default "\\.(gz|tgz|xz||zst|bz2|tar|zip|7z)$")
-  -t, --concurrency int            number of concurrent workers to use (default 6)
-  -v, --debug                      enable debug output
-  -n, --file-name-regex string     comma separated list regex to match file name in the search dir or in archives (default "[^([^\\.]+|.+\\.(so|a|dll|lib|exe))$]")
-  -p, --file-path-regex string     comma separated list regex to match file path in the search dir or in archives (default "[^.*$]")
-  -h, --help                       help for symbol-search
-  -A, --include-archive            search inside archive files
-      --no-dynamic                 do not parse dynamic symbols which are loaded at runtime with ldopen
-      --no-elf                     do not parse ELF files (Linux binaries)
-      --no-imported                do not parse imported symbols (from dll or shared objects)
-      --no-internal                do not parse internal symbols from the binary or library itself
-      --no-pe                      do not parse PE files (Windows binaries)
-  -o, --output-file string         output file to write the results to
-  -f, --search-dir string          directory to search for files recursively (default ".")
-  -s, --symbol-name-regex string   comma separated list regex to match symbol name in the search dir or in archives (default "[.*]")
+  -a, --archive-regex string        regex to match archive files in the search dir (default "\\.(gz|tgz|xz||zst|bz2|tar|zip|7z)$")
+  -v, --debug                       enable debug output
+  -m, --file-mode string            optional comma separated list of file mode masks to match against (e.g. 0555, 0755, 0640, mode&mask == mask) (default "[0500 0444]")
+  -n, --file-name-regex string      mandatory comma separated list regex to match file name in the search dir or in archives (default "[^([^\\.]+|.+\\.(so|a|dll|lib|exe|dylib))$]")
+  -p, --file-path-regex string      optional comma separated list regex to match the file's parent path in the search dir or in archives (default "[]")
+  -h, --help                        help for symbol-search
+  -A, --no-archive                  disables searching inside of archives
+  -o, --output-file string          output file to write the results to
+  -f, --search-dir string           directory, file or archive to search for symbols recursively (default ".")
+  -S, --section-name-regex string   optional comma separated list of regex to match section name in binaries or libraries (default "[.*]")
+  -s, --symbol-name-regex string    mandatory comma separated list of regex to match symbol name in binaries or libraries (default "[]")
 
 Use "symbol-search [command] --help" for more information about a command.
 ```
