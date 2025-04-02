@@ -74,7 +74,17 @@ func ReadImportedSymbolsMachO(f *macho.File) ([]Symbol, error) {
 
 		sect := f.Sections[s.Sect]
 
-		result = append(result, NewSymbol(s.Name, s.Value, 0, ImportedSection, sect.Name, UnknownVersion, lib))
+		symbol := NewSymbol(
+			TypeMachO,
+			SubTypeImported,
+			s.Name,
+			s.Value,
+			0,
+			sect.Name,
+			UnknownVersion,
+			lib,
+		)
+		result = append(result, symbol)
 	}
 	return result, nil
 }
@@ -106,7 +116,17 @@ func ReadDynamicSymbolsMachO(f *macho.File) ([]Symbol, error) {
 			return nil, fmt.Errorf("section %d out of bounds", s.Sect)
 		}
 		sect := f.Sections[s.Sect]
-		result = append(result, NewSymbol(s.Name, s.Value, 0, DynamicSection, sect.Name, UnknownVersion, lib))
+		symbol := NewSymbol(
+			TypeMachO,
+			SubTypeDynamic,
+			s.Name,
+			s.Value,
+			0,
+			sect.Name,
+			UnknownVersion,
+			lib,
+		)
+		result = append(result, symbol)
 	}
 
 	return result, nil

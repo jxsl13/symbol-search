@@ -8,27 +8,28 @@ import (
 	"os/user"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jxsl13/symbol-search/nm"
 )
 
 func NewConfig() Config {
 	return Config{
-		SearchDir:           ".",
-		FilePathRegexList:   []string{},
-		FileNameRegexList:   []string{`^([^\.]+|.+\.(so|a|dll|lib|exe))$`},
-		FileModeMaskList:    []string{"0500", "0444"},
-		ArchiveRegex:        `\.(gz|tgz|xz||zst|bz2|tar|zip|7z)$`,
-		SymbolNameRegexList: []string{},
-		PaintInterval:       10 * time.Second,
-		Concurrency:         max(1, runtime.NumCPU()),
+		SearchDir:            ".",
+		FilePathRegexList:    []string{},
+		FileNameRegexList:    []string{`^([^\.]+|.+\.(so|a|dll|lib|exe|dylib))$`},
+		FileModeMaskList:     []string{"0500", "0444"},
+		SectionNameRegexList: []string{".*"},
+		ArchiveRegex:         `\.(gz|tgz|xz||zst|bz2|tar|zip|7z)$`,
+		SymbolNameRegexList:  []string{},
+		PaintInterval:        10 * time.Second,
 	}
 }
 
 type Config struct {
-	SearchDir string `koanf:"search.dir" short:"f" description:"directory to search for files recursively"`
+	SearchDir string `koanf:"search.dir" short:"f" description:"directory, file or archive to search for symbols recursively"`
 
 	FilePathRegexList  []string         `koanf:"file.path.regex" short:"p" description:"optional comma separated list regex to match the file's parent path in the search dir or in archives"`
 	FilePathRegexpList []*regexp.Regexp `koanf:"-"`
@@ -39,26 +40,19 @@ type Config struct {
 	FileModeMaskList   []string      `koanf:"file.mode" short:"m" description:"optional comma separated list of file mode masks to match against (e.g. 0555, 0755, 0640, mode&mask == mask)"`
 	FileFSModeMaskList []fs.FileMode `koanf:"-"`
 
-	IncludeArchives bool           `koanf:"include.archive" short:"A" description:"enable searching inside of archives"`
-	ArchiveRegex    string         `koanf:"archive.regex" short:"a" description:"regex to match archive files in the search dir"`
-	ArchiveRegexp   *regexp.Regexp `koanf:"-"`
+	NoArchives    bool           `koanf:"no.archive" short:"A" description:"disables searching inside of archives"`
+	ArchiveRegex  string         `koanf:"archive.regex" short:"a" description:"regex to match archive files in the search dir"`
+	ArchiveRegexp *regexp.Regexp `koanf:"-"`
 
 	SymbolNameRegexList  []string         `koanf:"symbol.name.regex" short:"s" description:"mandatory comma separated list of regex to match symbol name in binaries or libraries"`
 	SymbolNameRegexpList []*regexp.Regexp `koanf:"-"`
 
-	Concurrency int `koanf:"concurrency" short:"t" description:"number of concurrent workers to use"`
+	SectionNameRegexList  []string         `koanf:"section.name.regex" short:"S" description:"optional comma separated list of regex to match section name in binaries or libraries"`
+	SectionNameRegexpList []*regexp.Regexp `koanf:"-"`
 
 	OutputFile string `koanf:"output.file" short:"o" description:"output file to write the results to"`
 
 	PaintInterval time.Duration `koanf:"-" short:"i" description:"interval to print progress"`
-
-	NoELF bool `koanf:"no.elf" description:"do not parse ELF files (Linux binaries)"`
-	NoPE  bool `koanf:"no.pe" description:"do not parse PE files (Windows binaries)"`
-
-	NoStatic   bool `koanf:"no.static" description:"do not parse static libraries (*.a)"`
-	NoImported bool `koanf:"no.imported" description:"do not parse imported symbols (from dll or shared objects)"`
-	NoDynamic  bool `koanf:"no.dynamic" description:"do not parse dynamic symbols which are loaded at runtime with ldopen"`
-	NoInternal bool `koanf:"no.internal" description:"do not parse internal symbols from the binary or library itself"`
 
 	Debug bool `koanf:"debug" short:"v" description:"enable debug output"`
 }
@@ -122,7 +116,7 @@ func (cfg *Config) Validate() error {
 		cfg.FileFSModeMaskList = append(cfg.FileFSModeMaskList, m)
 	}
 
-	if cfg.IncludeArchives {
+	if !cfg.NoArchives {
 		if cfg.ArchiveRegex == "" {
 			return errors.New("archive regex is required when including archives")
 		}
@@ -145,8 +139,15 @@ func (cfg *Config) Validate() error {
 		cfg.SymbolNameRegexpList = append(cfg.SymbolNameRegexpList, re)
 	}
 
-	if cfg.Concurrency < 1 {
-		return errors.New("concurrency must be greater than 0")
+	if len(cfg.SectionNameRegexList) == 0 {
+		return errors.New("section name regex is required")
+	}
+	for _, sr := range cfg.SectionNameRegexList {
+		re, err := regexp.Compile(sr)
+		if err != nil {
+			return fmt.Errorf("invalid section name regex: %w", err)
+		}
+		cfg.SectionNameRegexpList = append(cfg.SectionNameRegexpList, re)
 	}
 
 	if cfg.PaintInterval < time.Second {
@@ -157,7 +158,7 @@ func (cfg *Config) Validate() error {
 }
 
 func (cfg *Config) IsMatchingArchive(path string) bool {
-	return cfg.IncludeArchives && cfg.ArchiveRegexp.MatchString(path)
+	return !cfg.NoArchives && cfg.ArchiveRegexp.MatchString(path)
 }
 
 func (cfg *Config) IsMatchingFileName(path string) bool {
@@ -195,8 +196,22 @@ func (c *Config) IsMatchingFileMode(mode fs.FileMode) bool {
 	return false
 }
 
-func (c *Config) IsMatchingSymbol(name string) bool {
+func (c *Config) IsMatchingSymbol(symbol nm.Symbol) bool {
+	return c.IsMatchingSymbolName(symbol.Name) &&
+		c.IsMatchingSymbolSection(symbol.Section)
+}
+
+func (c *Config) IsMatchingSymbolName(name string) bool {
 	for _, re := range c.SymbolNameRegexpList {
+		if re.MatchString(name) {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Config) IsMatchingSymbolSection(name string) bool {
+	for _, re := range c.SectionNameRegexpList {
 		if re.MatchString(name) {
 			return true
 		}

@@ -11,8 +11,7 @@
             "mode": "auto",
             "program": "${workspaceFolder}",
             "args": [
-                "-t",
-                "1",
+                "--debug",
                 "-v",
                 "-n",
                 ".*\\.a",
@@ -29,11 +28,8 @@
             "mode": "auto",
             "program": "${workspaceFolder}",
             "args": [
-                "-t",
-                "1",
+                "--debug",
                 "-v",
-                "-n",
-                ".*(\\.exe||\\.dll)",
                 "-f",
                 "/DBA/gnu/win/",
                 "-s",

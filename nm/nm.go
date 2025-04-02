@@ -4,12 +4,16 @@ import (
 	"strings"
 )
 
-var (
+const (
 	UnknownLibrary  = "unknown"
 	UnknownVersion  = "unknown"
-	InternalSection = "internal"
-	ImportedSection = "imported"
-	DynamicSection  = "dynamic"
+	TypeELF         = "elf"
+	TypeMachO       = "macho"
+	TypePE          = "pe"
+	TypeAR          = "ar"
+	SubTypeImported = "imported"
+	SubTypeDynamic  = "dynamic"
+	SubTypeInternal = "internal"
 )
 
 type Symbol struct {
@@ -19,14 +23,16 @@ type Symbol struct {
 	Size    uint64
 	Section string
 
-	Source string
-
 	// These fields are present only for the dynamic symbol table.
 	Version string
 	Library string
+
+	ArchiveType string // containing archive type like .a
+	Type        string // actual type of the object
+	SubType     string // subtype of the symbol (internal, external, dynamic, imported, etc.)
 }
 
-func NewSymbol(name string, value, size uint64, source, section string, version, library string) Symbol {
+func NewSymbol(symbolType, subType string, name string, value, size uint64, section string, version, library string) Symbol {
 
 	// occasionally we get versions with double @@ instead of most likely a single one which
 	// is used to split the version from the symbol name
@@ -44,20 +50,26 @@ func NewSymbol(name string, value, size uint64, source, section string, version,
 		Name:    name,
 		Value:   value,
 		Size:    size,
-		Source:  source,
 		Section: section,
 		Version: defaultIfEmpty(version, UnknownVersion),
 		Library: defaultIfEmpty(library, UnknownLibrary),
-	}
 
+		ArchiveType: "",
+		Type:        symbolType,
+		SubType:     subType,
+	}
+}
+
+func (s *Symbol) SetArchiveType(archiveType string) {
+	s.ArchiveType = archiveType
 }
 
 func (s *Symbol) Header() []any {
-	return []any{"Name", "Value", "Size", "Source", "Section", "Version", "Library"}
+	return []any{"ArchiveType", "Type", "SubType", "Name", "Value", "Size", "Section", "Version", "Library"}
 }
 
 func (s *Symbol) Row() []any {
-	return []any{s.Name, s.Value, s.Size, s.Source, s.Section, s.Version, s.Library}
+	return []any{s.ArchiveType, s.Type, s.SubType, s.Name, s.Value, s.Size, s.Section, s.Version, s.Library}
 }
 
 func defaultIfEmpty(s, defaultString string) string {

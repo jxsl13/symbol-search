@@ -45,8 +45,14 @@ func NewTable() *SyncTable {
 	}
 }
 
-func (t *SyncTable) AppendSymbol(path string, s nm.Symbol) {
-	t.AppendRow(append(table.Row{path}, s.Row()...))
+func (t *SyncTable) AppendSymbol(s PathSymbol) {
+	t.AppendRow(append(table.Row{s.Path}, s.Symbol.Row()...))
+}
+
+func (t *SyncTable) AppendSymbolList(ss []PathSymbol) {
+	for _, s := range ss {
+		t.AppendSymbol(s)
+	}
 }
 
 func (t *SyncTable) AppendFooter(row table.Row, configs ...table.RowConfig) {

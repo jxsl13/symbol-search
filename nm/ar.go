@@ -22,10 +22,10 @@ func WalkAR(file archivewalker.File, walkFunc archivewalker.WalkFunc) (err error
 	for {
 		// defines a sub error in the loop scope
 		header, err = arr.Next()
-		switch {
-		case errors.Is(err, io.EOF):
-			return nil
-		case err != nil:
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
 			err = walkFunc("", nil, nil, err)
 			if err != nil {
 				return err

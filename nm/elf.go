@@ -17,7 +17,16 @@ func ReadDynamicSymbolsELF(file *elf.File) ([]Symbol, error) {
 
 	result := make([]Symbol, 0, len(ds))
 	for _, s := range ds {
-		symbol := NewSymbol(s.Name, s.Value, s.Size, DynamicSection, s.Section.String(), s.Version, s.Library)
+		symbol := NewSymbol(
+			TypeELF,
+			SubTypeDynamic,
+			s.Name,
+			s.Value,
+			s.Size,
+			s.Section.String(),
+			s.Version,
+			s.Library,
+		)
 		result = append(result, symbol)
 	}
 
@@ -35,7 +44,17 @@ func ReadImportedSymbolsELF(file *elf.File) ([]Symbol, error) {
 
 	result := make([]Symbol, 0, len(is))
 	for _, s := range is {
-		result = append(result, NewSymbol(s.Name, 0, 0, ImportedSection, "", s.Version, s.Library))
+		symbol := NewSymbol(
+			TypeELF,
+			SubTypeImported,
+			s.Name,
+			0,
+			0,
+			"",
+			s.Version,
+			s.Library,
+		)
+		result = append(result, symbol)
 	}
 
 	return result, nil
@@ -52,7 +71,16 @@ func ReadInternalSymbolsELF(file *elf.File) ([]Symbol, error) {
 
 	result := make([]Symbol, 0, len(ss))
 	for _, s := range ss {
-		symbol := NewSymbol(s.Name, s.Value, s.Size, InternalSection, s.Section.String(), s.Version, s.Library)
+		symbol := NewSymbol(
+			TypeELF,
+			SubTypeInternal,
+			s.Name,
+			s.Value,
+			s.Size,
+			s.Section.String(),
+			s.Version,
+			s.Library,
+		)
 		result = append(result, symbol)
 	}
 
